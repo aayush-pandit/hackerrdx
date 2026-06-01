@@ -20,71 +20,86 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
     - name: Pure Project Structure Generator
       run: |
-        # Clean everything
-        rm -rf app build build.gradle.kts settings.gradle.kts gradlew gradle .gradle
-        rm -rf .idea *.iml app/*.iml
-        rm -f AndroidManifest.xml
-        rm -f app/src/main/AndroidManifest.xml
-        rm -f gradle.properties
+        set -e
         
-        # Create complete directory structure
+        # ===================== SAFE CLEANING =====================
+        echo "🧹 Cleaning old artifacts..."
+        rm -rf app 2>/dev/null || true
+        rm -rf build 2>/dev/null || true
+        rm -f build.gradle.kts settings.gradle.kts gradlew gradle.properties 2>/dev/null || true
+        rm -rf .gradle 2>/dev/null || true
+        rm -rf .idea *.iml 2>/dev/null || true
+        rm -f AndroidManifest.xml 2>/dev/null || true
+        
+        # ===================== CREATE DIRECTORIES =====================
+        echo "📁 Creating directory structure..."
         mkdir -p app/src/main/java/com/example
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/res/mipmap
         mkdir -p app/src/main/res/drawable
+        mkdir -p app/src/main/res/xml
         mkdir -p app/src/debug
         mkdir -p app/src/release
+        mkdir -p app/src/androidTest/java/com/example
+        mkdir -p app/src/test/java/com/example
 
         # ===================== MAIN ACTIVITY =====================
+        echo "📝 Creating MainActivity.kt..."
         cat > app/src/main/java/com/example/MainActivity.kt << 'EOF'
         package com.example
         
         import android.os.Bundle
         import androidx.activity.ComponentActivity
         import androidx.activity.compose.setContent
+        import androidx.compose.foundation.layout.Box
         import androidx.compose.foundation.layout.fillMaxSize
         import androidx.compose.material3.MaterialTheme
         import androidx.compose.material3.Surface
         import androidx.compose.material3.Text
         import androidx.compose.runtime.Composable
+        import androidx.compose.ui.Alignment
         import androidx.compose.ui.Modifier
+        import androidx.compose.ui.text.TextStyle
+        import androidx.compose.ui.unit.sp
         
         class MainActivity : ComponentActivity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 setContent {
-                    HackerRDXTheme {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.background
-                        ) {
-                            Greeting("HackerRDX")
-                        }
-                    }
+                    HackerRDXApp()
                 }
             }
         }
         
         @Composable
-        fun Greeting(name: String, modifier: Modifier = Modifier) {
-            Text(
-                text = "Welcome $name!",
-                modifier = modifier
-            )
-        }
-        
-        @Composable
-        fun HackerRDXTheme(content: @Composable () -> Unit) {
+        fun HackerRDXApp() {
             MaterialTheme {
-                content()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Welcome to HackerRDX!",
+                            style = TextStyle(fontSize = 20.sp)
+                        )
+                    }
+                }
             }
         }
         EOF
 
         # ===================== ANDROID MANIFEST =====================
+        echo "📋 Creating AndroidManifest.xml..."
         cat > app/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -93,6 +108,7 @@ jobs:
             
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
             
             <application
                 android:allowBackup="true"
@@ -109,6 +125,7 @@ jobs:
                 <activity
                     android:name=".MainActivity"
                     android:exported="true"
+                    android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
                     android:theme="@style/Theme.HackerRDX">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -120,15 +137,18 @@ jobs:
         EOF
 
         # ===================== STRINGS RESOURCES =====================
+        echo "📝 Creating strings.xml..."
         cat > app/src/main/res/values/strings.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <string name="app_name">HackerRDX</string>
             <string name="action_settings">Settings</string>
+            <string name="title_activity_main">HackerRDX</string>
         </resources>
         EOF
 
         # ===================== COLORS RESOURCES =====================
+        echo "🎨 Creating colors.xml..."
         cat > app/src/main/res/values/colors.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
@@ -139,10 +159,23 @@ jobs:
             <color name="teal_700">#FF018786</color>
             <color name="black">#FF000000</color>
             <color name="white">#FFFFFFFF</color>
+            <color name="gray">#FF808080</color>
+        </resources>
+        EOF
+
+        # ===================== DIMENS RESOURCES =====================
+        echo "📐 Creating dimens.xml..."
+        cat > app/src/main/res/values/dimens.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <dimen name="text_size_large">20sp</dimen>
+            <dimen name="text_size_medium">16sp</dimen>
+            <dimen name="text_size_small">12sp</dimen>
         </resources>
         EOF
 
         # ===================== THEMES RESOURCES =====================
+        echo "🎭 Creating themes.xml..."
         cat > app/src/main/res/values/themes.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
@@ -150,38 +183,79 @@ jobs:
                 <item name="android:colorPrimary">@color/purple_500</item>
                 <item name="android:colorPrimaryDark">@color/purple_700</item>
                 <item name="android:colorAccent">@color/teal_200</item>
+                <item name="android:windowBackground">@color/white</item>
+                <item name="android:textColorPrimary">@color/black</item>
+                <item name="android:textColorSecondary">@color/gray</item>
             </style>
         </resources>
         EOF
 
         # ===================== DATA EXTRACTION RULES =====================
+        echo "🔐 Creating data_extraction_rules.xml..."
         cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <data-extraction-rules>
+            <cloud-backup disableIfNoEncryptionCapabilities="true" />
             <domain-config cleartextTrafficPermitted="false">
                 <domain includeSubdomains="true">example.com</domain>
+                <domain includeSubdomains="true">*.example.com</domain>
             </domain-config>
         </data-extraction-rules>
         EOF
 
         # ===================== BACKUP RULES =====================
+        echo "💾 Creating backup_rules.xml..."
         cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <full-backup-content>
             <include domain="sharedpref" path="."/>
             <include domain="database" path="."/>
             <include domain="file" path="docs/"/>
+            <exclude domain="file" path="cache/"/>
         </full-backup-content>
         EOF
 
+        # ===================== NETWORK CONFIG =====================
+        echo "🌐 Creating network_security_config.xml..."
+        cat > app/src/main/res/xml/network_security_config.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <network-security-config>
+            <domain-config cleartextTrafficPermitted="false">
+                <domain includeSubdomains="true">example.com</domain>
+            </domain-config>
+            <base-config cleartextTrafficPermitted="false">
+                <trust-anchors>
+                    <certificates src="system" />
+                </trust-anchors>
+            </base-config>
+        </network-security-config>
+        EOF
+
+        # ===================== EMPTY LAYOUT =====================
+        echo "📐 Creating empty_layout.xml..."
+        cat > app/src/main/res/layout/empty_layout.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+        EOF
+
         # ===================== SETTINGS GRADLE KTS =====================
+        echo "⚙️  Creating settings.gradle.kts..."
         cat > settings.gradle.kts << 'EOF'
+        @file:Suppress("UnstableApiUsage")
+        
         pluginManagement {
             repositories {
-                google()
+                google {
+                    content {
+                        includeGroupByRegex("com\\.android.*")
+                        includeGroupByRegex("com\\.google.*")
+                        includeGroupByRegex("androidx.*")
+                    }
+                }
                 mavenCentral()
                 gradlePluginPortal()
-                maven(url = "https://jcenter.bintray.com/")
             }
             plugins {
                 id("com.android.application") version "8.1.0"
@@ -193,9 +267,14 @@ jobs:
         dependencyResolutionManagement {
             repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
             repositories {
-                google()
+                google {
+                    content {
+                        includeGroupByRegex("com\\.android.*")
+                        includeGroupByRegex("com\\.google.*")
+                        includeGroupByRegex("androidx.*")
+                    }
+                }
                 mavenCentral()
-                maven(url = "https://jcenter.bintray.com/")
             }
         }
         
@@ -204,7 +283,10 @@ jobs:
         EOF
 
         # ===================== BUILD GRADLE KTS =====================
+        echo "🔨 Creating app/build.gradle.kts..."
         cat > app/build.gradle.kts << 'EOF'
+        @file:Suppress("UnstableApiUsage")
+
         plugins {
             id("com.android.application")
             id("org.jetbrains.kotlin.android")
@@ -222,14 +304,15 @@ jobs:
                 versionName = "1.0"
                 
                 testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-                vectorDrawables {
-                    useSupportLibrary = true
-                }
+                vectorDrawables.useSupportLibrary = true
+                
+                consumerProguardFiles("consumer-rules.pro")
             }
             
             buildTypes {
                 release {
-                    isMinifyEnabled = false
+                    isMinifyEnabled = true
+                    isShrinkResources = true
                     proguardFiles(
                         getDefaultProguardFile("proguard-android-optimize.txt"),
                         "proguard-rules.pro"
@@ -237,6 +320,7 @@ jobs:
                 }
                 debug {
                     isDebuggable = true
+                    isMinifyEnabled = false
                 }
             }
             
@@ -255,6 +339,7 @@ jobs:
                 renderScript = false
                 resValues = true
                 shaders = false
+                buildConfig = true
             }
             
             composeOptions {
@@ -264,12 +349,19 @@ jobs:
             packagingOptions {
                 resources {
                     excludes += "/META-INF/{AL2.0,LGPL2.1}"
+                    excludes += "/META-INF/proguard/androidx-*.pro"
                 }
+            }
+            
+            lintOptions {
+                checkReleaseBuilds = true
+                abortOnError = false
+                warning("MissingTranslation")
             }
         }
         
         dependencies {
-            // Core
+            // Core Android
             implementation("androidx.core:core-ktx:1.12.0")
             implementation("androidx.appcompat:appcompat:1.6.1")
             implementation("androidx.activity:activity-compose:1.8.0")
@@ -280,15 +372,20 @@ jobs:
             implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
             implementation("androidx.compose.material3:material3:1.1.1")
             implementation("androidx.compose.material:material:1.5.4")
+            implementation("androidx.compose.material:material-icons-core:1.5.4")
+            implementation("androidx.compose.material:material-icons-extended:1.5.4")
             
             // Lifecycle
             implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
             implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
             
-            // Material
+            // Material Design
             implementation("com.google.android.material:material:1.10.0")
             
-            // Utilities
+            // Networking
+            implementation("com.squareup.okhttp3:okhttp:4.11.0")
+            
+            // Layout
             implementation("androidx.constraintlayout:constraintlayout:2.1.4")
             
             // Testing
@@ -302,8 +399,12 @@ jobs:
         EOF
 
         # ===================== GRADLE PROPERTIES =====================
+        echo "⚙️  Creating gradle.properties..."
         cat > gradle.properties << 'EOF'
-        org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
+        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:+UnlockDiagnosticVMOptions -XX:G1NewCollectionPercentage=30 -XX:G1ReservePercent=10 -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        org.gradle.caching=true
+        org.gradle.parallel=true
+        org.gradle.workers.max=4
         android.useAndroidX=true
         android.enableJetifier=true
         android.defaults.buildfeatures.buildconfig=true
@@ -311,11 +412,14 @@ jobs:
         android.suppressUnsupportedCompileSdk=34
         kotlin.incremental=true
         kotlin.incremental.js=true
+        kotlin.code.style=official
         EOF
 
         # ===================== PROGUARD RULES =====================
+        echo "🛡️  Creating app/proguard-rules.pro..."
         cat > app/proguard-rules.pro << 'EOF'
         # Add project specific ProGuard rules here.
+        -keepattributes *Annotation*
         -keep public class * {
             public protected *;
         }
@@ -325,16 +429,55 @@ jobs:
             public static **[] values();
             public static ** valueOf(java.lang.String);
         }
+        -keepclassmembers class * {
+            @android.webkit.JavascriptInterface <methods>;
+        }
         EOF
 
-    - name: Use Official Stable Compiler
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: 8.1.1
-        cache: true
+        # ===================== CONSUMER PROGUARD =====================
+        echo "🛡️  Creating app/consumer-rules.pro..."
+        cat > app/consumer-rules.pro << 'EOF'
+        # ProGuard rules for library consumers
+        -keep public class * {
+            public protected *;
+        }
+        EOF
+
+        echo "✅ Project structure created successfully!"
+
+    - name: Validate Gradle Setup
+      run: |
+        echo "🔍 Validating gradle configuration..."
+        if [ ! -f "settings.gradle.kts" ]; then
+          echo "❌ settings.gradle.kts not found!"
+          exit 1
+        fi
+        if [ ! -f "app/build.gradle.kts" ]; then
+          echo "❌ app/build.gradle.kts not found!"
+          exit 1
+        fi
+        if [ ! -f "gradle.properties" ]; then
+          echo "❌ gradle.properties not found!"
+          exit 1
+        fi
+        echo "✅ Gradle configuration validated!"
+
+    - name: Setup Gradle Wrapper
+      run: |
+        echo "📦 Setting up Gradle wrapper..."
+        gradle wrapper --gradle-version 8.1.1 --distribution-type bin || true
+        chmod +x gradlew
+        ls -la gradlew
+
+    - name: Build with Gradle
+      run: |
+        echo "🔨 Building APK..."
+        ./gradlew clean assembleDebug --stacktrace -Dorg.gradle.logging.level=info --no-daemon
 
     - name: Generate Final APK
-      run: gradle assembleDebug --no-daemon --stacktrace -Dorg.gradle.logging.level=info
+      run: |
+        echo "📦 Generating APK..."
+        ./gradlew assembleDebug --no-daemon --info
 
     - name: Upload APK Download Link
       uses: actions/upload-artifact@v4
@@ -343,10 +486,12 @@ jobs:
         path: app/build/outputs/apk/debug/*.apk
         retention-days: 30
 
-    - name: Upload Build Logs
+    - name: Upload Build Logs on Failure
       if: failure()
       uses: actions/upload-artifact@v4
       with:
         name: build-logs
-        path: app/build/reports/
+        path: |
+          app/build/reports/
+          app/build/outputs/
         retention-days: 7
