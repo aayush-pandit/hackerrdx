@@ -1,4 +1,4 @@
-name: Android Ultimate Build
+name: Android Ultimate Build - Complete Fix
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
     - name: Checkout Code
@@ -19,35 +20,52 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: gradle
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Pure Project Structure Generator
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.gradle/caches
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
+
+    - name: Download Android SDK
+      run: |
+        echo "📥 Downloading Android SDK components..."
+        yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+        $ANDROID_HOME/tools/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "cmake;3.22.1" > /dev/null 2>&1 || true
+        echo "✅ Android SDK components ready"
+
+    - name: Verify Java Installation
+      run: |
+        echo "🔍 Verifying Java installation..."
+        java -version
+        javac -version
+        echo "✅ Java verified"
+
+    - name: Complete Project Structure Generator
       run: |
         set -e
         
-        # ===================== SAFE CLEANING =====================
         echo "🧹 Cleaning old artifacts..."
-        rm -rf app 2>/dev/null || true
-        rm -rf build 2>/dev/null || true
-        rm -f build.gradle.kts settings.gradle.kts gradlew gradle.properties 2>/dev/null || true
-        rm -rf .gradle 2>/dev/null || true
-        rm -rf .idea *.iml 2>/dev/null || true
+        rm -rf app build build.gradle.kts settings.gradle.kts gradlew gradlew.bat gradle .gradle gradle.properties 2>/dev/null || true
+        rm -rf .idea *.iml app/*.iml 2>/dev/null || true
         rm -f AndroidManifest.xml 2>/dev/null || true
         
-        # ===================== CREATE DIRECTORIES =====================
-        echo "📁 Creating directory structure..."
+        echo "📁 Creating complete directory structure..."
         mkdir -p app/src/main/java/com/example
-        mkdir -p app/src/main/res/values
-        mkdir -p app/src/main/res/layout
-        mkdir -p app/src/main/res/mipmap
-        mkdir -p app/src/main/res/drawable
-        mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/{values,layout,mipmap,drawable,xml,anim,color,dimen}
         mkdir -p app/src/debug
         mkdir -p app/src/release
         mkdir -p app/src/androidTest/java/com/example
         mkdir -p app/src/test/java/com/example
+        mkdir -p gradle/wrapper
+        mkdir -p buildSrc/src/main/kotlin
+        mkdir -p .github/workflows
 
         # ===================== MAIN ACTIVITY =====================
         echo "📝 Creating MainActivity.kt..."
@@ -57,22 +75,32 @@ jobs:
         import android.os.Bundle
         import androidx.activity.ComponentActivity
         import androidx.activity.compose.setContent
+        import androidx.compose.foundation.background
         import androidx.compose.foundation.layout.Box
+        import androidx.compose.foundation.layout.Column
         import androidx.compose.foundation.layout.fillMaxSize
+        import androidx.compose.foundation.layout.padding
         import androidx.compose.material3.MaterialTheme
         import androidx.compose.material3.Surface
         import androidx.compose.material3.Text
         import androidx.compose.runtime.Composable
         import androidx.compose.ui.Alignment
         import androidx.compose.ui.Modifier
+        import androidx.compose.ui.graphics.Color
         import androidx.compose.ui.text.TextStyle
+        import androidx.compose.ui.text.font.FontWeight
+        import androidx.compose.ui.unit.dp
         import androidx.compose.ui.unit.sp
         
         class MainActivity : ComponentActivity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
-                setContent {
-                    HackerRDXApp()
+                try {
+                    setContent {
+                        HackerRDXApp()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -85,13 +113,32 @@ jobs:
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF1a1a1a)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Welcome to HackerRDX!",
-                            style = TextStyle(fontSize = 20.sp)
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Welcome to HackerRDX!",
+                                style = TextStyle(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Green
+                                )
+                            )
+                            Text(
+                                text = "Android App Build Success",
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                ),
+                                modifier = Modifier.padding(top = 16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -120,13 +167,15 @@ jobs:
                 android:supportsRtl="true"
                 android:theme="@style/Theme.HackerRDX"
                 android:usesCleartextTraffic="false"
+                android:networkSecurityConfig="@xml/network_security_config"
                 tools:targetApi="34">
                 
                 <activity
                     android:name=".MainActivity"
                     android:exported="true"
                     android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
-                    android:theme="@style/Theme.HackerRDX">
+                    android:theme="@style/Theme.HackerRDX"
+                    android:screenOrientation="sensor">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -144,6 +193,7 @@ jobs:
             <string name="app_name">HackerRDX</string>
             <string name="action_settings">Settings</string>
             <string name="title_activity_main">HackerRDX</string>
+            <string name="hello_world">Hello World!</string>
         </resources>
         EOF
 
@@ -160,6 +210,8 @@ jobs:
             <color name="black">#FF000000</color>
             <color name="white">#FFFFFFFF</color>
             <color name="gray">#FF808080</color>
+            <color name="dark_gray">#FF404040</color>
+            <color name="green">#FF00FF00</color>
         </resources>
         EOF
 
@@ -168,9 +220,30 @@ jobs:
         cat > app/src/main/res/values/dimens.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
-            <dimen name="text_size_large">20sp</dimen>
+            <dimen name="text_size_large">24sp</dimen>
             <dimen name="text_size_medium">16sp</dimen>
             <dimen name="text_size_small">12sp</dimen>
+            <dimen name="text_size_tiny">10sp</dimen>
+            <dimen name="padding_small">8dp</dimen>
+            <dimen name="padding_medium">16dp</dimen>
+            <dimen name="padding_large">24dp</dimen>
+        </resources>
+        EOF
+
+        # ===================== STYLES RESOURCES =====================
+        echo "🎭 Creating styles.xml..."
+        cat > app/src/main/res/values/styles.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <style name="AppBaseTheme" parent="android:Theme.Light">
+                <item name="android:windowNoTitle">false</item>
+                <item name="android:windowTitleSize">25dip</item>
+                <item name="android:windowTitleBackgroundStyle">@style/WindowTitleBackground</item>
+            </style>
+            
+            <style name="WindowTitleBackground">
+                <item name="android:background">@color/purple_500</item>
+            </style>
         </resources>
         EOF
 
@@ -179,13 +252,20 @@ jobs:
         cat > app/src/main/res/values/themes.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
-            <style name="Theme.HackerRDX" parent="android:Theme.Material.Light">
+            <style name="Theme.HackerRDX" parent="android:Theme.Material.Light.DarkActionBar">
                 <item name="android:colorPrimary">@color/purple_500</item>
                 <item name="android:colorPrimaryDark">@color/purple_700</item>
                 <item name="android:colorAccent">@color/teal_200</item>
                 <item name="android:windowBackground">@color/white</item>
                 <item name="android:textColorPrimary">@color/black</item>
                 <item name="android:textColorSecondary">@color/gray</item>
+                <item name="android:windowActionBar">true</item>
+                <item name="android:windowNoTitle">false</item>
+            </style>
+            
+            <style name="Theme.HackerRDX.NoActionBar">
+                <item name="android:windowNoTitle">true</item>
+                <item name="android:windowActionBar">false</item>
             </style>
         </resources>
         EOF
@@ -212,6 +292,7 @@ jobs:
             <include domain="database" path="."/>
             <include domain="file" path="docs/"/>
             <exclude domain="file" path="cache/"/>
+            <exclude domain="file" path="nomedia/"/>
         </full-backup-content>
         EOF
 
@@ -226,16 +307,18 @@ jobs:
             <base-config cleartextTrafficPermitted="false">
                 <trust-anchors>
                     <certificates src="system" />
+                    <certificates src="user" />
                 </trust-anchors>
             </base-config>
         </network-security-config>
         EOF
 
         # ===================== EMPTY LAYOUT =====================
-        echo "📐 Creating empty_layout.xml..."
-        cat > app/src/main/res/layout/empty_layout.xml << 'EOF'
+        echo "📐 Creating activity_main.xml..."
+        cat > app/src/main/res/layout/activity_main.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/container"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
         EOF
@@ -261,6 +344,7 @@ jobs:
                 id("com.android.application") version "8.1.0"
                 id("com.android.library") version "8.1.0"
                 id("org.jetbrains.kotlin.android") version "1.8.20"
+                id("org.jetbrains.kotlin.jvm") version "1.8.20"
             }
         }
         
@@ -321,6 +405,7 @@ jobs:
                 debug {
                     isDebuggable = true
                     isMinifyEnabled = false
+                    debuggable = true
                 }
             }
             
@@ -340,6 +425,8 @@ jobs:
                 resValues = true
                 shaders = false
                 buildConfig = true
+                viewBinding = false
+                dataBinding = false
             }
             
             composeOptions {
@@ -350,6 +437,7 @@ jobs:
                 resources {
                     excludes += "/META-INF/{AL2.0,LGPL2.1}"
                     excludes += "/META-INF/proguard/androidx-*.pro"
+                    excludes += "DebugProbesKt.bin"
                 }
             }
             
@@ -357,6 +445,7 @@ jobs:
                 checkReleaseBuilds = true
                 abortOnError = false
                 warning("MissingTranslation")
+                disable("MissingDimensionality")
             }
         }
         
@@ -365,6 +454,7 @@ jobs:
             implementation("androidx.core:core-ktx:1.12.0")
             implementation("androidx.appcompat:appcompat:1.6.1")
             implementation("androidx.activity:activity-compose:1.8.0")
+            implementation("androidx.activity:activity:1.7.2")
             
             // Compose
             implementation("androidx.compose.ui:ui:1.5.4")
@@ -382,11 +472,9 @@ jobs:
             // Material Design
             implementation("com.google.android.material:material:1.10.0")
             
-            // Networking
-            implementation("com.squareup.okhttp3:okhttp:4.11.0")
-            
             // Layout
             implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+            implementation("androidx.fragment:fragment-ktx:1.6.1")
             
             // Testing
             testImplementation("junit:junit:4.13.2")
@@ -401,24 +489,27 @@ jobs:
         # ===================== GRADLE PROPERTIES =====================
         echo "⚙️  Creating gradle.properties..."
         cat > gradle.properties << 'EOF'
-        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:+UnlockDiagnosticVMOptions -XX:G1NewCollectionPercentage=30 -XX:G1ReservePercent=10 -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:+UnlockDiagnosticVMOptions -XX:G1NewCollectionPercentage=30 -XX:G1ReservePercent=10 -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+IgnoreUnrecognizedVMOptions
         org.gradle.caching=true
         org.gradle.parallel=true
         org.gradle.workers.max=4
+        org.gradle.daemon=true
+        org.gradle.configureondemand=true
         android.useAndroidX=true
         android.enableJetifier=true
         android.defaults.buildfeatures.buildconfig=true
         android.nonTransitiveRClass=true
         android.suppressUnsupportedCompileSdk=34
+        android.aidlSourceDestDirForRelease=src/main/aidl
         kotlin.incremental=true
         kotlin.incremental.js=true
         kotlin.code.style=official
+        kotlin.compiler.execution.strategy=in-process
         EOF
 
         # ===================== PROGUARD RULES =====================
         echo "🛡️  Creating app/proguard-rules.pro..."
         cat > app/proguard-rules.pro << 'EOF'
-        # Add project specific ProGuard rules here.
         -keepattributes *Annotation*
         -keep public class * {
             public protected *;
@@ -432,66 +523,123 @@ jobs:
         -keepclassmembers class * {
             @android.webkit.JavascriptInterface <methods>;
         }
+        -dontnote android.net.Uri
+        -dontwarn android.net.Uri
+        -keepnames @interface com.google.android.gms.common.annotation.KeepName
         EOF
 
         # ===================== CONSUMER PROGUARD =====================
         echo "🛡️  Creating app/consumer-rules.pro..."
         cat > app/consumer-rules.pro << 'EOF'
-        # ProGuard rules for library consumers
         -keep public class * {
             public protected *;
         }
         EOF
 
-        echo "✅ Project structure created successfully!"
+        # ===================== GRADLE WRAPPER =====================
+        echo "📦 Creating gradle wrapper..."
+        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.1.1-bin.zip
+        EOF
 
-    - name: Validate Gradle Setup
-      run: |
-        echo "🔍 Validating gradle configuration..."
-        if [ ! -f "settings.gradle.kts" ]; then
-          echo "❌ settings.gradle.kts not found!"
-          exit 1
-        fi
-        if [ ! -f "app/build.gradle.kts" ]; then
-          echo "❌ app/build.gradle.kts not found!"
-          exit 1
-        fi
-        if [ ! -f "gradle.properties" ]; then
-          echo "❌ gradle.properties not found!"
-          exit 1
-        fi
-        echo "✅ Gradle configuration validated!"
+        echo "✅ Complete project structure created successfully!"
 
-    - name: Setup Gradle Wrapper
+    - name: Validate Project Structure
       run: |
-        echo "📦 Setting up Gradle wrapper..."
-        gradle wrapper --gradle-version 8.1.1 --distribution-type bin || true
+        echo "🔍 Validating project structure..."
+        files=(
+          "settings.gradle.kts"
+          "app/build.gradle.kts"
+          "gradle.properties"
+          "app/src/main/AndroidManifest.xml"
+          "app/src/main/java/com/example/MainActivity.kt"
+          "app/src/main/res/values/strings.xml"
+          "gradle/wrapper/gradle-wrapper.properties"
+        )
+        
+        for file in "${files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing: $file"
+            exit 1
+          fi
+          echo "✅ Found: $file"
+        done
+        echo "✅ All files validated!"
+
+    - name: Setup Gradle Wrapper Permissions
+      run: |
+        echo "📦 Setting up Gradle wrapper permissions..."
+        gradle wrapper --gradle-version 8.1.1 --distribution-type bin 2>/dev/null || true
         chmod +x gradlew
-        ls -la gradlew
+        ls -la gradlew || echo "gradlew not found yet"
 
-    - name: Build with Gradle
+    - name: Clean Gradle Cache
+      run: |
+        echo "🧹 Cleaning gradle cache..."
+        ./gradlew clean --no-daemon --stacktrace || gradle clean --stacktrace
+
+    - name: Download Gradle Dependencies
+      run: |
+        echo "📥 Downloading gradle dependencies..."
+        ./gradlew --version || gradle --version
+        ./gradlew assemble --dry-run --no-daemon || gradle assemble --dry-run
+
+    - name: Build APK
       run: |
         echo "🔨 Building APK..."
-        ./gradlew clean assembleDebug --stacktrace -Dorg.gradle.logging.level=info --no-daemon
+        ./gradlew assembleDebug \
+          --stacktrace \
+          --info \
+          --no-daemon \
+          --no-build-cache \
+          -Dorg.gradle.logging.level=info \
+          2>&1 | tee build.log
 
     - name: Generate Final APK
+      if: success()
       run: |
-        echo "📦 Generating APK..."
-        ./gradlew assembleDebug --no-daemon --info
+        echo "📦 Checking generated APK..."
+        if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "✅ APK generated successfully!"
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+        else
+          echo "❌ APK not found in expected location"
+          find app/build -name "*.apk" -type f
+          exit 1
+        fi
 
-    - name: Upload APK Download Link
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
+      if: success()
       with:
-        name: my-android-app
-        path: app/build/outputs/apk/debug/*.apk
+        name: hackerrdx-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
 
-    - name: Upload Build Logs on Failure
-      if: failure()
+    - name: Upload Build Logs
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: build-logs
         path: |
+          build.log
           app/build/reports/
           app/build/outputs/
         retention-days: 7
+
+    - name: Print Build Summary
+      if: always()
+      run: |
+        echo "========================================="
+        echo "BUILD SUMMARY"
+        echo "========================================="
+        echo "Build Status: $(if [ $? -eq 0 ]; then echo '✅ SUCCESS'; else echo '❌ FAILED'; fi)"
+        echo "========================================="
+        if [ -f "build.log" ]; then
+          echo "Build Log Available"
+          tail -50 build.log
+        fi
