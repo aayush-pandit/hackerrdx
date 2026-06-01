@@ -31,7 +31,6 @@ jobs:
         mkdir -p app/src/main/java/com/example
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/layout
-        mkdir -p gradle/wrapper
 
         # Create MainActivity.kt
         cat > app/src/main/java/com/example/MainActivity.kt << 'EOF'
@@ -152,7 +151,7 @@ jobs:
         }
         EOF
 
-        # Create gradle.properties (WITHOUT java.home path)
+        # Create gradle.properties
         cat > gradle.properties << 'EOF'
         android.useAndroidX=true
         android.enableJetifier=true
@@ -164,9 +163,7 @@ jobs:
         gradle-version: 8.1.1
 
     - name: Generate Final APK
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
+      run: gradle assembleDebug --no-daemon --no-build-cache
 
     - name: Upload APK Download Link
       uses: actions/upload-artifact@v4
