@@ -51,7 +51,7 @@ jobs:
         }
         EOF
 
-        # Create correct AndroidManifest.xml with proper attributes
+        # Create correct AndroidManifest.xml
         cat > app/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -64,7 +64,7 @@ jobs:
                 android:icon="@mipmap/ic_launcher"
                 android:label="@string/app_name"
                 android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+                android:theme="@android:style/Theme.DeviceDefault">
                 
                 <activity
                     android:name=".MainActivity"
@@ -76,6 +76,14 @@ jobs:
                 </activity>
             </application>
         </manifest>
+        EOF
+
+        # Create strings.xml resource
+        cat > app/src/main/res/values/strings.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <string name="app_name">HackerRDX</string>
+        </resources>
         EOF
 
         # Create settings.gradle.kts
@@ -100,7 +108,7 @@ jobs:
         include(":app")
         EOF
 
-        # Create build.gradle.kts
+        # Create app/build.gradle.kts
         cat > app/build.gradle.kts << 'EOF'
         plugins {
             id("com.android.application")
@@ -144,20 +152,10 @@ jobs:
         }
         EOF
 
-        # Create gradle.properties
+        # Create gradle.properties (WITHOUT java.home path)
         cat > gradle.properties << 'EOF'
         android.useAndroidX=true
         android.enableJetifier=true
-        
-        EOF
-
-        # Create strings.xml resource
-        mkdir -p app/src/main/res/values
-        cat > app/src/main/res/values/strings.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <string name="app_name">HackerRDX</string>
-        </resources>
         EOF
 
     - name: Use Official Stable Compiler
@@ -166,11 +164,12 @@ jobs:
         gradle-version: 8.1.1
 
     - name: Generate Final APK
-      run: cd app && gradle assembleDebug --no-daemon
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK Download Link
       uses: actions/upload-artifact@v4
       with:
         name: my-android-app
         path: app/build/outputs/apk/debug/*.apk
-
