@@ -1,0 +1,109 @@
+name: Android Ultimate Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Pure Project Structure Generator
+      run: |
+        rm -rf app build.gradle.kts settings.gradle.kts gradlew gradle .gradle
+        
+        mkdir -p app/src/main/java/com/example
+        mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/layout
+        mkdir -p gradle/wrapper
+
+        echo 'package com.example
+        import android.os.Bundle
+        import androidx.activity.ComponentActivity
+        class MainActivity : ComponentActivity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+            }
+        }' > app/src/main/java/com/example/MainActivity.kt
+
+        echo '<?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://android.com">
+            <application
+                android:allowBackup="true"
+                android:label="Hacking Terminal"
+                android:supportsRtl="true"
+                android:theme="@android:style/Theme.DeviceDefault">
+                <activity
+                    android:name="com.example.MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>' > app/src/main/AndroidManifest.xml
+
+        echo '
+        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+        dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+        include(":app")
+        ' > settings.gradle.kts
+
+        echo '
+        plugins {
+            id("com.android.application") version "8.1.0"
+            id("org.jetbrains.kotlin.android") version "1.8.20"
+        }
+        android {
+            namespace = "com.example"
+            compileSdk = 34
+            defaultConfig {
+                applicationId = "com.example"
+                minSdk = 24
+                targetSdk = 34
+                versionCode = 1
+                versionName = "1.0"
+            }
+            compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+            kotlinOptions { jvmTarget = "17" }
+        }
+        dependencies {
+            implementation("androidx.core:core-ktx:1.10.1")
+            implementation("androidx.activity:activity:1.7.2")
+        }
+        ' > app/build.gradle.kts
+
+        echo '
+        android.useAndroidX=true
+        android.enableJetifier=true
+        ' > gradle.properties
+
+    - name: Use Official Stable Compiler
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: 8.1.1
+        cache-disabled: true
+
+    - name: Generate Final APK
+      run: gradle assembleDebug --no-daemon --no-build-cache --no-configuration-cache
+
+    - name: Upload APK Download Link
+      uses: actions/upload-artifact@v4
+      with:
+        name: my-android-app
+        path: |
+          app/build/outputs/apk/debug/*.apk
+
