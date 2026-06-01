@@ -22,52 +22,94 @@ jobs:
 
     - name: Pure Project Structure Generator
       run: |
-        # Remove old build artifacts
-        rm -rf app build.gradle.kts settings.gradle.kts gradlew gradle .gradle
+        # Clean everything
+        rm -rf app build build.gradle.kts settings.gradle.kts gradlew gradle .gradle
+        rm -rf .idea *.iml app/*.iml
         rm -f AndroidManifest.xml
         rm -f app/src/main/AndroidManifest.xml
+        rm -f gradle.properties
         
-        # Create directory structure
+        # Create complete directory structure
         mkdir -p app/src/main/java/com/example
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/layout
+        mkdir -p app/src/main/res/mipmap
+        mkdir -p app/src/main/res/drawable
+        mkdir -p app/src/debug
+        mkdir -p app/src/release
 
-        # Create MainActivity.kt
+        # ===================== MAIN ACTIVITY =====================
         cat > app/src/main/java/com/example/MainActivity.kt << 'EOF'
         package com.example
         
         import android.os.Bundle
         import androidx.activity.ComponentActivity
         import androidx.activity.compose.setContent
+        import androidx.compose.foundation.layout.fillMaxSize
+        import androidx.compose.material3.MaterialTheme
+        import androidx.compose.material3.Surface
+        import androidx.compose.material3.Text
+        import androidx.compose.runtime.Composable
+        import androidx.compose.ui.Modifier
         
         class MainActivity : ComponentActivity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 setContent {
-                    // Empty composable
+                    HackerRDXTheme {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            Greeting("HackerRDX")
+                        }
+                    }
                 }
+            }
+        }
+        
+        @Composable
+        fun Greeting(name: String, modifier: Modifier = Modifier) {
+            Text(
+                text = "Welcome $name!",
+                modifier = modifier
+            )
+        }
+        
+        @Composable
+        fun HackerRDXTheme(content: @Composable () -> Unit) {
+            MaterialTheme {
+                content()
             }
         }
         EOF
 
-        # Create correct AndroidManifest.xml
+        # ===================== ANDROID MANIFEST =====================
         cat > app/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools"
             package="com.example">
             
             <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
             
             <application
                 android:allowBackup="true"
+                android:dataExtractionRules="@xml/data_extraction_rules"
+                android:fullBackupContent="@xml/backup_rules"
                 android:icon="@mipmap/ic_launcher"
                 android:label="@string/app_name"
+                android:roundIcon="@mipmap/ic_launcher_round"
                 android:supportsRtl="true"
-                android:theme="@android:style/Theme.DeviceDefault">
+                android:theme="@style/Theme.HackerRDX"
+                android:usesCleartextTraffic="false"
+                tools:targetApi="34">
                 
                 <activity
                     android:name=".MainActivity"
-                    android:exported="true">
+                    android:exported="true"
+                    android:theme="@style/Theme.HackerRDX">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -77,24 +119,73 @@ jobs:
         </manifest>
         EOF
 
-        # Create strings.xml resource
+        # ===================== STRINGS RESOURCES =====================
         cat > app/src/main/res/values/strings.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <string name="app_name">HackerRDX</string>
+            <string name="action_settings">Settings</string>
         </resources>
         EOF
 
-        # Create settings.gradle.kts with plugins block
+        # ===================== COLORS RESOURCES =====================
+        cat > app/src/main/res/values/colors.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <color name="purple_200">#FFBB86FC</color>
+            <color name="purple_500">#FF6200EE</color>
+            <color name="purple_700">#FF3700B3</color>
+            <color name="teal_200">#FF03DAC5</color>
+            <color name="teal_700">#FF018786</color>
+            <color name="black">#FF000000</color>
+            <color name="white">#FFFFFFFF</color>
+        </resources>
+        EOF
+
+        # ===================== THEMES RESOURCES =====================
+        cat > app/src/main/res/values/themes.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <style name="Theme.HackerRDX" parent="android:Theme.Material.Light">
+                <item name="android:colorPrimary">@color/purple_500</item>
+                <item name="android:colorPrimaryDark">@color/purple_700</item>
+                <item name="android:colorAccent">@color/teal_200</item>
+            </style>
+        </resources>
+        EOF
+
+        # ===================== DATA EXTRACTION RULES =====================
+        cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <data-extraction-rules>
+            <domain-config cleartextTrafficPermitted="false">
+                <domain includeSubdomains="true">example.com</domain>
+            </domain-config>
+        </data-extraction-rules>
+        EOF
+
+        # ===================== BACKUP RULES =====================
+        cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <full-backup-content>
+            <include domain="sharedpref" path="."/>
+            <include domain="database" path="."/>
+            <include domain="file" path="docs/"/>
+        </full-backup-content>
+        EOF
+
+        # ===================== SETTINGS GRADLE KTS =====================
         cat > settings.gradle.kts << 'EOF'
         pluginManagement {
             repositories {
                 google()
                 mavenCentral()
                 gradlePluginPortal()
+                maven(url = "https://jcenter.bintray.com/")
             }
             plugins {
                 id("com.android.application") version "8.1.0"
+                id("com.android.library") version "8.1.0"
                 id("org.jetbrains.kotlin.android") version "1.8.20"
             }
         }
@@ -104,6 +195,7 @@ jobs:
             repositories {
                 google()
                 mavenCentral()
+                maven(url = "https://jcenter.bintray.com/")
             }
         }
         
@@ -111,11 +203,11 @@ jobs:
         include(":app")
         EOF
 
-        # Create app/build.gradle.kts with plugin versions
+        # ===================== BUILD GRADLE KTS =====================
         cat > app/build.gradle.kts << 'EOF'
         plugins {
-            id("com.android.application") version "8.1.0"
-            id("org.jetbrains.kotlin.android") version "1.8.20"
+            id("com.android.application")
+            id("org.jetbrains.kotlin.android")
         }
         
         android {
@@ -128,11 +220,23 @@ jobs:
                 targetSdk = 34
                 versionCode = 1
                 versionName = "1.0"
+                
+                testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+                vectorDrawables {
+                    useSupportLibrary = true
+                }
             }
             
             buildTypes {
                 release {
                     isMinifyEnabled = false
+                    proguardFiles(
+                        getDefaultProguardFile("proguard-android-optimize.txt"),
+                        "proguard-rules.pro"
+                    )
+                }
+                debug {
+                    isDebuggable = true
                 }
             }
             
@@ -144,33 +248,105 @@ jobs:
             kotlinOptions {
                 jvmTarget = "17"
             }
+            
+            buildFeatures {
+                compose = true
+                aidl = false
+                renderScript = false
+                resValues = true
+                shaders = false
+            }
+            
+            composeOptions {
+                kotlinCompilerExtensionVersion = "1.4.8"
+            }
+            
+            packagingOptions {
+                resources {
+                    excludes += "/META-INF/{AL2.0,LGPL2.1}"
+                }
+            }
         }
         
         dependencies {
+            // Core
             implementation("androidx.core:core-ktx:1.12.0")
             implementation("androidx.appcompat:appcompat:1.6.1")
             implementation("androidx.activity:activity-compose:1.8.0")
+            
+            // Compose
             implementation("androidx.compose.ui:ui:1.5.4")
+            implementation("androidx.compose.ui:ui-graphics:1.5.4")
+            implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
+            implementation("androidx.compose.material3:material3:1.1.1")
+            implementation("androidx.compose.material:material:1.5.4")
+            
+            // Lifecycle
+            implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+            implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+            
+            // Material
             implementation("com.google.android.material:material:1.10.0")
+            
+            // Utilities
+            implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+            
+            // Testing
+            testImplementation("junit:junit:4.13.2")
+            androidTestImplementation("androidx.test.ext:junit:1.1.5")
+            androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+            androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.5.4")
+            debugImplementation("androidx.compose.ui:ui-tooling:1.5.4")
+            debugImplementation("androidx.compose.ui:ui-test-manifest:1.5.4")
         }
         EOF
 
-        # Create gradle.properties
+        # ===================== GRADLE PROPERTIES =====================
         cat > gradle.properties << 'EOF'
+        org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
         android.useAndroidX=true
         android.enableJetifier=true
+        android.defaults.buildfeatures.buildconfig=true
+        android.nonTransitiveRClass=true
+        android.suppressUnsupportedCompileSdk=34
+        kotlin.incremental=true
+        kotlin.incremental.js=true
+        EOF
+
+        # ===================== PROGUARD RULES =====================
+        cat > app/proguard-rules.pro << 'EOF'
+        # Add project specific ProGuard rules here.
+        -keep public class * {
+            public protected *;
+        }
+        -keep class androidx.** { *; }
+        -keep class com.google.android.material.** { *; }
+        -keepclassmembers enum * {
+            public static **[] values();
+            public static ** valueOf(java.lang.String);
+        }
         EOF
 
     - name: Use Official Stable Compiler
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.1.1
+        cache: true
 
     - name: Generate Final APK
-      run: gradle assembleDebug --no-daemon --no-build-cache
+      run: gradle assembleDebug --no-daemon --stacktrace -Dorg.gradle.logging.level=info
 
     - name: Upload APK Download Link
       uses: actions/upload-artifact@v4
       with:
         name: my-android-app
         path: app/build/outputs/apk/debug/*.apk
+        retention-days: 30
+
+    - name: Upload Build Logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: app/build/reports/
+        retention-days: 7
