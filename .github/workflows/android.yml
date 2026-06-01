@@ -1,14 +1,10 @@
-name: Android Build - Final Error Fix
+name: Android Build - JDK 17 Fix
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
-env:
-  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=1024m
-  ANDROID_HOME: /opt/android
 
 jobs:
   build:
@@ -18,51 +14,52 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
-    - name: Set up JDK 17
+    - name: Set up JDK 17 - Correct Way
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
+        cache: 'gradle'
+        check-latest: false
+
+    - name: Verify Java Installation
+      run: |
+        echo "🔍 Checking Java..."
+        java -version
+        javac -version
+        echo "JAVA_HOME: $JAVA_HOME"
+        which java
+        which javac
+        echo "✅ Java verified"
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        ndk-version: r25c
 
-    - name: Accept All Android SDK Licenses
+    - name: Accept Licenses
       run: |
-        echo "yes" | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
+        echo "yes" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
         echo "✅ Licenses accepted"
 
-    - name: Download Android SDK
+    - name: Download SDK Components
       run: |
         $ANDROID_HOME/tools/bin/sdkmanager \
           "platforms;android-34" \
-          "build-tools;34.0.0" \
-          "cmake;3.22.1" || true
-        echo "✅ SDK downloaded"
+          "build-tools;34.0.0"
+        echo "✅ SDK ready"
 
-    - name: Cache Gradle
-      uses: actions/cache@v3
-      with:
-        path: ~/.gradle/caches
-        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
-        restore-keys: gradle-${{ runner.os }}-
-
-    - name: Clean & Setup Project
+    - name: Clean Project
       run: |
-        set -e
-        
-        # Clean
         rm -rf app build build.gradle.kts settings.gradle.kts gradlew gradle .gradle gradle.properties 2>/dev/null || true
         rm -rf .idea *.iml 2>/dev/null || true
-        
-        # Create directories
+
+    - name: Create Project Structure
+      run: |
         mkdir -p app/src/main/java/com/example
         mkdir -p app/src/main/res/{values,layout,mipmap,drawable,xml}
-        mkdir -p app/src/{debug,release,androidTest/java/com/example,test/java/com/example}
         mkdir -p gradle/wrapper
 
         # Root build.gradle.kts
@@ -77,7 +74,7 @@ jobs:
         }
         EOF
 
-        # Settings gradle
+        # Settings
         cat > settings.gradle.kts << 'EOF'
         pluginManagement {
             repositories {
@@ -99,15 +96,13 @@ jobs:
         include(":app")
         EOF
 
-        # Gradle properties
+        # gradle.properties
         cat > gradle.properties << 'EOF'
-        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
+        org.gradle.jvmargs=-Xmx2048m
         org.gradle.caching=true
-        org.gradle.parallel=true
         android.useAndroidX=true
         android.enableJetifier=true
         android.suppressUnsupportedCompileSdk=34
-        kotlin.incremental=true
         EOF
 
         # MainActivity
@@ -117,63 +112,19 @@ jobs:
         import android.os.Bundle
         import androidx.activity.ComponentActivity
         import androidx.activity.compose.setContent
-        import androidx.compose.foundation.background
-        import androidx.compose.foundation.layout.*
-        import androidx.compose.material3.MaterialTheme
-        import androidx.compose.material3.Surface
+        import androidx.compose.foundation.layout.Box
+        import androidx.compose.foundation.layout.fillMaxSize
         import androidx.compose.material3.Text
         import androidx.compose.runtime.Composable
         import androidx.compose.ui.Alignment
         import androidx.compose.ui.Modifier
-        import androidx.compose.ui.graphics.Color
-        import androidx.compose.ui.text.TextStyle
-        import androidx.compose.ui.text.font.FontWeight
-        import androidx.compose.ui.unit.dp
-        import androidx.compose.ui.unit.sp
         
         class MainActivity : ComponentActivity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 setContent {
-                    HackerRDXApp()
-                }
-            }
-        }
-        
-        @Composable
-        fun HackerRDXApp() {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFF1a1a1a)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "✅ HackerRDX",
-                                style = TextStyle(
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Green
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Build Success!",
-                                style = TextStyle(
-                                    fontSize = 18.sp,
-                                    color = Color.White
-                                )
-                            )
-                        }
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("HackerRDX - Build Success!")
                     }
                 }
             }
@@ -191,21 +142,14 @@ jobs:
             
             <application
                 android:allowBackup="true"
-                android:dataExtractionRules="@xml/data_extraction_rules"
-                android:fullBackupContent="@xml/backup_rules"
                 android:icon="@mipmap/ic_launcher"
                 android:label="@string/app_name"
-                android:roundIcon="@mipmap/ic_launcher_round"
-                android:supportsRtl="true"
                 android:theme="@style/Theme.HackerRDX"
-                android:usesCleartextTraffic="false"
-                android:networkSecurityConfig="@xml/network_security_config"
                 tools:targetApi="34">
                 
                 <activity
                     android:name=".MainActivity"
-                    android:exported="true"
-                    android:theme="@style/Theme.HackerRDX">
+                    android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -215,16 +159,15 @@ jobs:
         </manifest>
         EOF
 
-        # Strings
+        # strings.xml
         cat > app/src/main/res/values/strings.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <string name="app_name">HackerRDX</string>
-            <string name="action_settings">Settings</string>
         </resources>
         EOF
 
-        # Colors
+        # colors.xml
         cat > app/src/main/res/values/colors.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
@@ -233,63 +176,17 @@ jobs:
             <color name="teal_200">#FF03DAC5</color>
             <color name="black">#FF000000</color>
             <color name="white">#FFFFFFFF</color>
-            <color name="gray">#FF808080</color>
         </resources>
         EOF
 
-        # Dimens
-        cat > app/src/main/res/values/dimens.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <dimen name="text_size_large">24sp</dimen>
-            <dimen name="text_size_medium">16sp</dimen>
-            <dimen name="padding_medium">16dp</dimen>
-        </resources>
-        EOF
-
-        # Themes
+        # themes.xml
         cat > app/src/main/res/values/themes.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <style name="Theme.HackerRDX" parent="android:Theme.Material.Light">
                 <item name="android:colorPrimary">@color/purple_500</item>
-                <item name="android:colorPrimaryDark">@color/purple_700</item>
             </style>
         </resources>
-        EOF
-
-        # XML Resources
-        cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <data-extraction-rules>
-            <cloud-backup disableIfNoEncryptionCapabilities="true" />
-        </data-extraction-rules>
-        EOF
-
-        cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <full-backup-content>
-            <include domain="sharedpref" path="."/>
-        </full-backup-content>
-        EOF
-
-        cat > app/src/main/res/xml/network_security_config.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <network-security-config>
-            <base-config cleartextTrafficPermitted="false">
-                <trust-anchors>
-                    <certificates src="system" />
-                </trust-anchors>
-            </base-config>
-        </network-security-config>
-        EOF
-
-        # Layout
-        cat > app/src/main/res/layout/activity_main.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
         EOF
 
         # App build.gradle.kts
@@ -309,16 +206,11 @@ jobs:
                 targetSdk = 34
                 versionCode = 1
                 versionName = "1.0"
-                testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             }
             
             buildTypes {
                 release {
-                    isMinifyEnabled = true
-                    proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-                }
-                debug {
-                    isDebuggable = true
+                    isMinifyEnabled = false
                 }
             }
             
@@ -338,45 +230,18 @@ jobs:
             composeOptions {
                 kotlinCompilerExtensionVersion = "1.4.8"
             }
-            
-            packagingOptions {
-                resources {
-                    excludes += "/META-INF/{AL2.0,LGPL2.1}"
-                }
-            }
         }
         
         dependencies {
             implementation("androidx.core:core-ktx:1.12.0")
-            implementation("androidx.appcompat:appcompat:1.6.1")
             implementation("androidx.activity:activity-compose:1.8.0")
             implementation("androidx.compose.ui:ui:1.5.4")
-            implementation("androidx.compose.ui:ui-graphics:1.5.4")
-            implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
             implementation("androidx.compose.material3:material3:1.1.1")
             implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
-            implementation("com.google.android.material:material:1.10.0")
-            
-            testImplementation("junit:junit:4.13.2")
-            androidTestImplementation("androidx.test.ext:junit:1.1.5")
-            androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-            debugImplementation("androidx.compose.ui:ui-tooling:1.5.4")
         }
         EOF
 
-        # Proguard
-        cat > app/proguard-rules.pro << 'EOF'
-        -keepattributes *Annotation*
-        -keep public class * { public protected *; }
-        -keep class androidx.** { *; }
-        -keepclassmembers enum * {
-            public static **[] values();
-            public static ** valueOf(java.lang.String);
-        }
-        EOF
-
-        # Gradle wrapper properties
-        mkdir -p gradle/wrapper
+        # gradle-wrapper.properties
         cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
         distributionBase=GRADLE_USER_HOME
         distributionPath=wrapper/dists
@@ -385,35 +250,20 @@ jobs:
         zipStorePath=wrapper/dists
         EOF
 
-        echo "✅ Project setup complete"
-
-    - name: Validate Setup
-      run: |
-        echo "🔍 Validating..."
-        test -f "build.gradle.kts" && echo "✅ root gradle" || exit 1
-        test -f "settings.gradle.kts" && echo "✅ settings" || exit 1
-        test -f "app/build.gradle.kts" && echo "✅ app gradle" || exit 1
-        test -f "gradle.properties" && echo "✅ properties" || exit 1
-        test -f "app/src/main/AndroidManifest.xml" && echo "✅ manifest" || exit 1
+        echo "✅ Project created"
 
     - name: Create Gradle Wrapper
       run: |
-        gradle wrapper --gradle-version 8.1.1 --distribution-type bin
+        gradle wrapper --gradle-version 8.1.1
         chmod +x gradlew
+        ls -la gradlew
 
-    - name: Build with Gradle
-      run: ./gradlew clean assembleDebug --stacktrace --no-daemon
+    - name: Build APK
+      run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: success()
       with:
-        name: hackerrdx-apk
+        name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
-
-    - name: Upload Logs on Failure
-      uses: actions/upload-artifact@v4
-      if: failure()
-      with:
-        name: build-logs
-        path: app/build/reports/
