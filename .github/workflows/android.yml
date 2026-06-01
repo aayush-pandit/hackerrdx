@@ -85,13 +85,17 @@ jobs:
         </resources>
         EOF
 
-        # Create settings.gradle.kts
+        # Create settings.gradle.kts with plugins block
         cat > settings.gradle.kts << 'EOF'
         pluginManagement {
             repositories {
                 google()
                 mavenCentral()
                 gradlePluginPortal()
+            }
+            plugins {
+                id("com.android.application") version "8.1.0"
+                id("org.jetbrains.kotlin.android") version "1.8.20"
             }
         }
         
@@ -107,11 +111,11 @@ jobs:
         include(":app")
         EOF
 
-        # Create app/build.gradle.kts
+        # Create app/build.gradle.kts with plugin versions
         cat > app/build.gradle.kts << 'EOF'
         plugins {
-            id("com.android.application")
-            id("org.jetbrains.kotlin.android")
+            id("com.android.application") version "8.1.0"
+            id("org.jetbrains.kotlin.android") version "1.8.20"
         }
         
         android {
