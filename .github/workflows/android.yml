@@ -148,7 +148,7 @@ jobs:
         cat > gradle.properties << 'EOF'
         android.useAndroidX=true
         android.enableJetifier=true
-        org.gradle.java.home=/usr/lib/jvm/java-17-temurin
+        
         EOF
 
         # Create strings.xml resource
